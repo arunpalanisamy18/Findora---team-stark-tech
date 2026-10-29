@@ -1,0 +1,5 @@
+import mongoose, { Schema, type Document, type Model } from 'mongoose';
+export type UserRole = 'user' | 'admin';
+export interface IUser extends Document { name:string; email:string; phone?:string; passwordHash:string; role:UserRole; emailVerified:boolean; phoneVerified:boolean; verificationCodeHash?:string; verificationExpiresAt?:Date; resetCodeHash?:string; resetExpiresAt?:Date; createdAt:Date; updatedAt:Date }
+const schema = new Schema<IUser>({name:{type:String,required:true,trim:true,minlength:2,maxlength:100},email:{type:String,required:true,unique:true,lowercase:true,trim:true,index:true},phone:{type:String,trim:true,maxlength:30},passwordHash:{type:String,required:true,select:false},role:{type:String,enum:['user','admin'],default:'user'},emailVerified:{type:Boolean,default:false},phoneVerified:{type:Boolean,default:false},verificationCodeHash:String,verificationExpiresAt:Date,resetCodeHash:String,resetExpiresAt:Date},{timestamps:true});
+export const User:Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User',schema);

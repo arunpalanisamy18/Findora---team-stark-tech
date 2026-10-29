@@ -1,0 +1,16 @@
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and generated output
+node_modules/
+dist/
+dist-server/
+
+# Temporary browser testing artifacts
+.playwright-mcp/
+
+# Local logs and development OTP output
+*.log
+dev-otps.txt

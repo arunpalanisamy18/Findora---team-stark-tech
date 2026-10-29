@@ -1,0 +1,12 @@
+import type { Request, Response, NextFunction } from 'express';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { User } from '../models/User.js';
+import { AppError } from './errorHandler.js';
+const secret = () => process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'findora-local-development-only-secret-change-this');
+export type AuthUser = { id:string; role:'user'|'admin'; email:string };
+declare global { namespace Express { interface Request { authUser?: AuthUser } } }
+export function signToken(user:AuthUser, expiresInSeconds=60*60*8) { const header=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url'); const payload=Buffer.from(JSON.stringify({...user,iat:Math.floor(Date.now()/1000),exp:Math.floor(Date.now()/1000)+expiresInSeconds})).toString('base64url'); const input=`${header}.${payload}`; return `${input}.${createHmac('sha256',secret()).update(input).digest('base64url')}`; }
+function decodeToken(token:string):AuthUser|null { try { if(!secret()) return null; const parts=token.split('.'); if(parts.length!==3)return null; const input=`${parts[0]}.${parts[1]}`; const expected=createHmac('sha256',secret()).update(input).digest(); const actual=Buffer.from(parts[2],'base64url'); if(actual.length!==expected.length||!timingSafeEqual(actual,expected))return null; const p=JSON.parse(Buffer.from(parts[1],'base64url').toString()); if(!p.id||!p.exp||p.exp<Math.floor(Date.now()/1000)||!['user','admin'].includes(p.role))return null; return {id:p.id,role:p.role,email:p.email}; } catch {return null;} }
+export function requireAuth(req:Request,_res:Response,next:NextFunction){const h=req.headers.authorization;const token=h?.startsWith('Bearer ')?h.slice(7):(typeof req.query.token==='string'?req.query.token:'');const user=decodeToken(token);if(!user)return next(new AppError('Authentication required or session expired',401));req.authUser=user;next();}
+export function requireAdmin(req:Request,res:Response,next:NextFunction){requireAuth(req,res,(err?:unknown)=>{if(err)return next(err);if(req.authUser?.role!=='admin')return next(new AppError('Administrator access required',403));next();});}
+export async function requireVerified(req:Request,_res:Response,next:NextFunction){try{const user=await User.findById(req.authUser?.id).select('emailVerified');if(!user?.emailVerified)return next(new AppError('Verify your email before using this feature',403));next();}catch(e){next(e)}}

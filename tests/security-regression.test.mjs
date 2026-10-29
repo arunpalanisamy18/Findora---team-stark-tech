@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const read = (p) => readFile(new URL(`../${p}`, import.meta.url), 'utf8');
+test('administrative routes require administrator authorization', async () => { const s=await read('server/routes/admin.ts'); assert.match(s,/adminRouter\.use\(requireAdmin\)/); });
+test('production CORS does not allow arbitrary origins', async () => { const s=await read('server/app.ts'); assert.match(s,/callback\(new Error\('Origin not allowed by CORS'\)\)/); assert.doesNotMatch(s,/Fallback: allow all/); });
+test('public item endpoints exclude private contact and ownership evidence', async () => { const s=await read('server/routes/items.ts'); assert.match(s,/select\('-contactEmail -contactPhone -identifyingMarks'\)/); });
+test('item reporting and claim submission require authenticated verified accounts', async () => { const a=await read('server/routes/items.ts'),b=await read('server/routes/claims.ts'); assert.match(a,/itemsRouter\.post\('\/', requireAuth, requireVerified/); assert.match(b,/claimsRouter\.post\('\/', requireAuth, requireVerified/); });
+test('recovery occurs only after explicit handover confirmation', async () => { const s=await read('server/routes/admin.ts'); assert.match(s,/claim\.handedOverAt = new Date\(\)/); assert.match(s,/item\.status = 'recovered'/); });
+test('development OTPs are opt-in and never returned in registration response', async () => { const s=await read('server/routes/auth.ts'); assert.match(s,/AUTH_DEV_SHOW_OTP==='true'/); assert.doesNotMatch(s,/res\.json\(\{[^}]*code\s*\}\)/s); });
+test('search queries safely escape regular expression special characters', async () => { const s=await read('server/routes/items.ts'); assert.match(s,/escapeRegex/); });

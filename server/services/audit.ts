@@ -1,0 +1,4 @@
+import mongoose, {Schema} from 'mongoose';
+const auditSchema=new Schema({actorId:{type:Schema.Types.ObjectId,ref:'User'},action:{type:String,required:true,maxlength:100},resourceType:{type:String,required:true,maxlength:80},resourceId:{type:String,maxlength:100},metadata:{type:Schema.Types.Mixed},ip:{type:String,maxlength:100},createdAt:{type:Date,default:Date.now,index:true,expires:60*60*24*365}},{versionKey:false});
+export const Audit=mongoose.models.AuditLog||mongoose.model('AuditLog',auditSchema);
+export async function audit(action:string,resourceType:string,resourceId:string|undefined,req:any,metadata:Record<string,unknown>={}){try{await Audit.create({actorId:req.authUser?.id,action,resourceType,resourceId,metadata,ip:req.ip});}catch(e){console.error('[audit-log-write-failed]',e instanceof Error?e.message:'unknown');}}
